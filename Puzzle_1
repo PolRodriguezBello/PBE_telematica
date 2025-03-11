@@ -6,7 +6,9 @@ puts "Posa el teu RFID tag aprop del lector"
 sleep(5)
 
 begin
-  lector.picc_request(MFRC522::PICC_REQA) uid = lector.picc_select
+  lector.picc_request(MFRC522::PICC_REQA) 
+  uid = lector.picc_select
+
   if uid.is_a?(Array) && !uid.empty? 
     uid_1 = uid [0]
     uid_hex = uid_1.map { |bytel "%02X" % byte}.join 
