@@ -1,0 +1,91 @@
+require 'mfrc522'
+
+module LectorID
+	def self.llegir_id
+		lector = MFRC522.new
+
+		begin 
+			lector.picc_request(MFRC522::PICC_REQA)
+			uid = lector.picc_select
+
+			if uid.is_a?(Array) && !uid.empty?
+				uid_1 = uid[0]
+				uid_hex = uid_1.map { |byte| "%02X" % byte}.join
+				return uid_hex
+			else
+				return nil
+			end
+		rescue => e
+			puts "Error: #{e.message}"
+			return nil
+		end
+	end
+end
+//////////////////////////////////////////////////////////////////
+
+require_relative 'primer_puzzle'
+require 'gtk3'
+require 'thread'
+
+
+class RFID
+	def inicialitzacio
+		@window = Gtk::Window.new("rfid_gtk.py")
+		@window.set_size_request(300, 150)
+		@window.signal_connect("destroy"){Gtk.main_quit}
+
+		@vbox = Gtk::Box.new(:vertical, 10)
+
+		@label = Gtk::Label.new("Si us plau apropa el teu carnet UPC")
+		@label.override_background_color(:normal, Gdk::RGBA.new(0, 0, 1, 1))
+		@label.override_color(:normal, Gdk::RGBA.new(1, 1, 1, 1))
+
+		@button = Gtk::Button.new(label: "Neteja")
+		@button.signal_connect("clicked") {neteja_etiqueta}
+
+		@vbox.pack_start(@label, expand: true, fill: true, padding: 5)
+		@vbox.pack_start(@button, expand: false, fill: false, padding: 5)
+
+		@window.add(@vbox)
+		@window.show_all
+
+		inici_rfid_fil
+	end
+
+	def neteja_etiqueta
+		@label.set_text("Si us plau apropa el teu carnet UPC")
+		@label.override_background_color(:normal, Gdk::RGBA.new(0, 0, 1, 1))
+	end
+
+	def inici_rfid_fil
+		#puts "inici fil"
+		Thread.new do
+			loop do
+				begin
+					uid = RFIDReader.LectorID
+					if uid
+						actualitza_etiqueta("uid: #{uid}", :red)
+					else
+						actualitza_etiqueta("No s'ha detectat la targeta", :blue)
+					end
+				rescue => e
+					actualitza_etiqueta("Error: #{e.message}", :red)
+				end
+				sleep 2
+			end
+		end
+	end
+	
+	def actualitza_etiqueta(text, color)
+		GLib::Idle.add do
+			@label.set_text(text)
+			bg_color = color == :red ? Gdk::RGBA.new(1, 0, 0, 1) : Gdk::RGBA.new(0, 0, 1, 1)
+			@label.override_background_color(:normal, bg_color)
+			true
+		end
+	end
+end
+
+Gtk.init
+RFID.new
+Gtk.main
